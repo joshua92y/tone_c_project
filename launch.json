@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Run FastAPI",
+        "type": "python",
+        "request": "launch",
+        "program": "${workspaceFolder}/app/main.py",
+        "console": "integratedTerminal",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}"
+        },
+        "args": ["uvicorn", "app.main:app", "--reload"]
+      }
+    ]
+  }
+  

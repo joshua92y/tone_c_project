@@ -1,0 +1,33 @@
+{
+  "name": "편한 친구 말투",
+  "tone": "친근한",
+  "emotion_tendency": "긍정적",
+  "formality": "낮음",
+  "vocab_style": [
+    "일상 어휘"
+  ],
+  "sentence_style": [
+    "짧은 문장"
+  ],
+  "expression_freq": [],
+  "intent_bias": [
+    "상호작용형"
+  ],
+  "relationship_tendency": [
+    {
+      "context": "친구",
+      "tone": "반말 + 친근함"
+    },
+    {
+      "context": "직장 (격식)",
+      "tone": "존댓말 + 정중함"
+    }
+  ],
+  "sample_phrases": [
+    "안녕?",
+    "오늘 뭐해?",
+    "잘 지내?"
+  ],
+  "notes": "이 말투는 격식 없이 편안하고 긍정적인 느낌을 전달하며, 주로 친구 사이에서 사용됩니다.",
+  "ai_recommendation_tone": "이 대화는 친구 간의 편안한 대화로 추정되므로, 반말 기반의 친근하고 간결한 톤을 추천합니다."
+}
