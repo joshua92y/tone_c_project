@@ -1,20 +1,54 @@
-# Flutter
+# ========================
+# Flutter 관련
+# ========================
 build/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
 .pub-cache/
+
+# ========================
+# Dart 관련
+# ========================
+*.dart.js
+*.info.json
+*.js
+*.js.map
+
+# ========================
+# VSCode 관련
+# ========================
+.vscode/
+
+# ========================
+# JetBrains IDE 관련 (예: IntelliJ, Android Studio)
+# ========================
 .idea/
 *.iml
 
-# VSCode
-.vscode/
-
-# Python
+# ========================
+# Python 관련
+# ========================
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
 .venv/
-.env
+.env/
+venv/
+*.log
+
+# ========================
+# 시스템/플랫폼별 무시 파일
+# ========================
+.DS_Store        # macOS
+Thumbs.db        # Windows
+ehthumbs.db
+Desktop.ini
+
+# ========================
+# 프로젝트 내 캐시/출력 디렉토리
+# ========================
 app/output/
 app/history/

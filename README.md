@@ -18,3 +18,4 @@ http://127.0.0.1:8000/docs
 }
 
 브런치 데스트용 문구 추가
+https://joshua92y.github.io/tone_c_project/
