@@ -10,11 +10,7 @@ class PresetPage extends StatefulWidget {
 }
 
 class _PresetPageState extends State<PresetPage> {
-  //final String userId = 'joshua'; // 임시 사용자 ID
-  final _nameController = TextEditingController();
-  final _toneController = TextEditingController();
-  final _emotionController = TextEditingController();
-  final _formalityController = TextEditingController();
+  final String userId = 'joshua'; // 임시 사용자 ID
   List<String> _presetNames = [];
   String? _selectedPreset;
   Map<String, dynamic>? _presetDetail;
