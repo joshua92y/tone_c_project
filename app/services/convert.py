@@ -48,22 +48,6 @@ def convert_from_preset(data: ConvertFromPresetRequest) -> ConvertResponse:
     return convert_with_tone_profile(request_data)
 #AI가 추천하는 프리셋을 사용하여 변환하는 함수
 def choose_best_preset_name(context_lines: list[str], user_id: str) -> str:
-    prompt = f"""
-아래는 대화 내용입니다. 이 대화의 말투 스타일을 보고, 
-사용자가 저장해둔 프리셋 중 어떤 말투가 어울릴지 판단해줘.
-가능한 프리셋 이름만 딱 한 단어로 반환해줘.
-
-대화 내용:
-{chr(10).join(context_lines)}
-
-저장된 프리셋 이름 목록: {', '.join(list_presets(user_id))}
-"""
-
-    response = model.generate_content(prompt)
-    return response.text.strip().splitlines()[0]  # 첫 줄만 반환
-
-#자동 프리셋 변환 요청을 처리하는 함수
-def choose_best_preset_name(context_lines: list[str], user_id: str) -> str:
     preset_names = list_presets(user_id)
     preset_descriptions = []
 

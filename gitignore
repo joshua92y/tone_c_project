@@ -7,6 +7,16 @@ build/
 .flutter-plugins-dependencies
 .packages
 .pub-cache/
+.pub/
+
+# Flutter 관련 빌드 산출물
+**/doc/api/
+**/ios/Flutter/.last_build_id
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
 
 # ========================
 # Dart 관련
@@ -30,10 +40,10 @@ build/
 # ========================
 # Python 관련
 # ========================
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/*.pyd
 .venv/
 .env/
 venv/
