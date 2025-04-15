@@ -10,12 +10,17 @@ class PresetPage extends StatefulWidget {
 }
 
 class _PresetPageState extends State<PresetPage> {
-  final String userId = 'joshua'; // 임시 사용자 ID
-  List<String> _presetNames = [];
-  String? _selectedPreset;
-  Map<String, dynamic>? _presetDetail;
-  bool _loading = false;
+  // 사용자 ID와 API 서버 주소
+  final String userId = 'joshua';
+  final String hostApiServer = 'https://tonecproject-production.up.railway.app';
 
+  // 상태 변수들
+  List<String> _presetNames = []; // 프리셋 이름 목록
+  String? _selectedPreset; // 현재 선택된 프리셋 이름
+  Map<String, dynamic>? _presetDetail; // 선택된 프리셋 상세정보
+  bool _loading = false; // 로딩 상태 여부
+
+  // 입력 필드 컨트롤러
   final _nameController = TextEditingController();
   final _toneController = TextEditingController();
   final _emotionController = TextEditingController();
@@ -24,13 +29,14 @@ class _PresetPageState extends State<PresetPage> {
   @override
   void initState() {
     super.initState();
-    _loadPresetList();
+    _loadPresetList(); // 위젯이 시작될 때 프리셋 목록을 불러옴
   }
 
+  // 프리셋 목록 불러오기
   Future<void> _loadPresetList() async {
     setState(() => _loading = true);
     try {
-      final uri = Uri.parse('http://localhost:8000/presets/$userId');
+      final uri = Uri.parse('$hostApiServer/presets/$userId');
       final response = await http.get(uri);
 
       if (response.statusCode == 200) {
@@ -48,6 +54,7 @@ class _PresetPageState extends State<PresetPage> {
     }
   }
 
+  // 프리셋 상세 정보 불러오기
   Future<void> _loadPresetDetail(String presetName) async {
     setState(() {
       _selectedPreset = presetName;
@@ -56,7 +63,7 @@ class _PresetPageState extends State<PresetPage> {
     });
 
     try {
-      final uri = Uri.parse('http://localhost:8000/presets/$userId/$presetName');
+      final uri = Uri.parse('$hostApiServer/presets/$userId/$presetName');
       final response = await http.get(uri);
 
       if (response.statusCode == 200) {
@@ -74,13 +81,14 @@ class _PresetPageState extends State<PresetPage> {
     }
   }
 
+  // 프리셋 삭제하기
   Future<void> _deletePreset(String presetName) async {
     try {
-      final uri = Uri.parse('http://localhost:8000/presets/$userId/$presetName');
+      final uri = Uri.parse('$hostApiServer/presets/$userId/$presetName');
       final response = await http.delete(uri);
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('삭제됨')));
-        await _loadPresetList();
+        await _loadPresetList(); // 삭제 후 목록 다시 불러오기
       } else {
         throw Exception('삭제 실패');
       }
@@ -89,8 +97,9 @@ class _PresetPageState extends State<PresetPage> {
     }
   }
 
+  // 프리셋 저장하기
   Future<void> _savePreset() async {
-    final uri = Uri.parse('http://localhost:8000/presets/$userId');
+    final uri = Uri.parse('$hostApiServer/presets/$userId');
 
     final presetData = {
       "name": _nameController.text.trim(),
@@ -116,7 +125,7 @@ class _PresetPageState extends State<PresetPage> {
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('프리셋 저장 완료')));
-        await _loadPresetList();
+        await _loadPresetList(); // 저장 후 목록 새로고침
       } else {
         throw Exception('프리셋 저장 실패');
       }
@@ -125,6 +134,7 @@ class _PresetPageState extends State<PresetPage> {
     }
   }
 
+  // 프리셋 목록 UI 구성
   Widget _buildPresetList() {
     if (_presetNames.isEmpty) return const Text('프리셋이 없습니다.');
     return Column(
@@ -142,6 +152,7 @@ class _PresetPageState extends State<PresetPage> {
     );
   }
 
+  // 프리셋 상세 UI 구성
   Widget _buildPresetDetail() {
     if (_presetDetail == null) return const SizedBox.shrink();
     return Card(
@@ -152,22 +163,23 @@ class _PresetPageState extends State<PresetPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("📌 이름: ${_presetDetail!['name']}"),
-            Text("🎯 톤: ${_presetDetail!['tone']}"),
-            Text("😊 감정: ${_presetDetail!['emotion_tendency']}"),
-            Text("📏 격식: ${_presetDetail!['formality']}"),
+            Text("\u{1F4CC} 이름: ${_presetDetail!['name']}"),
+            Text("\u{1F3AF} 톤: ${_presetDetail!['tone']}"),
+            Text("\u{1F60A} 감정: ${_presetDetail!['emotion_tendency']}"),
+            Text("\u{1F4CF} 격식: ${_presetDetail!['formality']}"),
             const SizedBox(height: 6),
-            Text("🗣️ 어휘 스타일: ${_presetDetail!['vocab_style'].join(', ')}"),
+            Text("\u{1F5E3}\u{FE0F} 어휘 스타일: ${_presetDetail!['vocab_style'].join(', ')}"),
           ],
         ),
       ),
     );
   }
 
+  // 전체 UI 구성
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('📚 프리셋 관리')),
+      appBar: AppBar(title: const Text('\u{1F4DA} 프리셋 관리')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: _loading
@@ -179,7 +191,7 @@ class _PresetPageState extends State<PresetPage> {
                     _buildPresetList(),
                     _buildPresetDetail(),
                     const Divider(),
-                    const Text("📥 프리셋 새로 저장"),
+                    const Text("\u{1F4E5} 프리셋 새로 저장"),
                     TextField(
                       controller: _nameController,
                       decoration: InputDecoration(labelText: '프리셋 이름'),
@@ -209,4 +221,3 @@ class _PresetPageState extends State<PresetPage> {
     );
   }
 }
-

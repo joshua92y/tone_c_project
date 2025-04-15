@@ -10,24 +10,27 @@ class ConvertPage extends StatefulWidget {
 }
 
 class _ConvertPageState extends State<ConvertPage> {
-  final String userId = 'joshua';
-  final _textController = TextEditingController();
-  String _result = '';
-  String _autoPresetName = '';
-  bool _loading = false;
+  final String userId = 'joshua'; // 사용자 ID
+  final String hostApiServer = 'https://tonecproject-production.up.railway.app'; // 배포된 API 서버 주소
 
-  List<String> _presetList = [];
-  String? _selectedPreset;
+  final _textController = TextEditingController(); // 입력 텍스트 컨트롤러
+  String _result = ''; // 변환 결과 텍스트
+  String _autoPresetName = ''; // 자동 추천된 프리셋 이름
+  bool _loading = false; // 로딩 여부
+
+  List<String> _presetList = []; // 프리셋 목록
+  String? _selectedPreset; // 선택된 프리셋 이름
 
   @override
   void initState() {
     super.initState();
-    _fetchPresets();
+    _fetchPresets(); // 프리셋 목록 로딩
   }
 
+  // 프리셋 목록 불러오기
   Future<void> _fetchPresets() async {
     try {
-      final uri = Uri.parse('http://localhost:8000/presets/$userId');
+      final uri = Uri.parse('$hostApiServer/presets/$userId');
       final response = await http.get(uri);
       if (response.statusCode == 200) {
         final decoded = utf8.decode(response.bodyBytes);
@@ -45,10 +48,11 @@ class _ConvertPageState extends State<ConvertPage> {
     }
   }
 
+  // 변환 결과를 히스토리에 저장
   Future<void> _saveToHistory(String convertedText) async {
     try {
       await http.post(
-        Uri.parse('http://localhost:8000/history/$userId'),
+        Uri.parse('$hostApiServer/history/$userId'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({"text": convertedText}),
       );
@@ -57,9 +61,10 @@ class _ConvertPageState extends State<ConvertPage> {
     }
   }
 
+  // 최근 대화 히스토리 가져오기 (자동 추천용)
   Future<List<String>> _getDialogueContext() async {
     try {
-      final response = await http.get(Uri.parse('http://localhost:8000/history/$userId'));
+      final response = await http.get(Uri.parse('$hostApiServer/history/$userId'));
       if (response.statusCode == 200) {
         final decoded = utf8.decode(response.bodyBytes);
         final List<dynamic> history = jsonDecode(decoded);
@@ -73,11 +78,12 @@ class _ConvertPageState extends State<ConvertPage> {
     return [];
   }
 
+  // 선택된 프리셋으로 변환 요청
   Future<void> _convertText() async {
     if (_selectedPreset == null) return;
     setState(() => _loading = true);
 
-    final uri = Uri.parse('http://localhost:8000/convert/from-preset');
+    final uri = Uri.parse('$hostApiServer/convert/from-preset');
     final requestBody = {
       "user_id": userId,
       "preset_name": _selectedPreset,
@@ -95,7 +101,6 @@ class _ConvertPageState extends State<ConvertPage> {
         final decoded = utf8.decode(response.bodyBytes);
         final convertedText = jsonDecode(decoded)['converted_text'];
         setState(() => _result = convertedText);
-
         await _saveToHistory(convertedText);
       } else {
         throw Exception('변환 실패');
@@ -107,6 +112,7 @@ class _ConvertPageState extends State<ConvertPage> {
     }
   }
 
+  // 자동 추천 프리셋으로 변환 요청
   Future<void> _autoConvert() async {
     setState(() {
       _loading = true;
@@ -115,7 +121,7 @@ class _ConvertPageState extends State<ConvertPage> {
 
     final contextList = await _getDialogueContext();
 
-    final uri = Uri.parse('http://localhost:8000/convert/auto-preset');
+    final uri = Uri.parse('$hostApiServer/convert/auto-preset');
     final requestBody = {
       "user_id": userId,
       "text": _textController.text.trim(),
@@ -146,6 +152,7 @@ class _ConvertPageState extends State<ConvertPage> {
     }
   }
 
+  // UI 구성
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -207,9 +214,8 @@ class _ConvertPageState extends State<ConvertPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (_autoPresetName.isNotEmpty)
-                        Text("🧠 추천된 프리셋: $_autoPresetName",
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold)),
+                        Text("\u{1F9E0} 추천된 프리셋: $_autoPresetName",
+                            style: const TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       Text(
                         _result,
