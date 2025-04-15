@@ -15,4 +15,11 @@ def analyze_text(data: AnalyzeRequest, user_id: str = Query(...)):
 
 @router.options("/analyze")
 async def preflight_analyze():
-    return Response(status_code=200)
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
