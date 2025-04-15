@@ -15,6 +15,18 @@ def analyze_tone(dialogue: list) -> ToneProfile:
         gemini_logger.info("Starting tone analysis")
         gemini_logger.debug(f"Input dialogue length: {len(dialogue)}")
         
+        # API 키 확인
+        if not GEMINI_API_KEY:
+            error_msg = "GEMINI_API_KEY is not set"
+            error_logger.error(error_msg)
+            raise ValueError(error_msg)
+            
+        # 대화 내용 검증
+        if not dialogue or not isinstance(dialogue, list):
+            error_msg = f"Invalid dialogue format: {type(dialogue)}"
+            error_logger.error(error_msg)
+            raise ValueError(error_msg)
+
         prompt = f"""
 다음은 두 사람 간의 대화입니다:
 
@@ -49,27 +61,36 @@ JSON 형식:
 """
 
         gemini_logger.debug("Sending request to Gemini API")
-        response = model.generate_content(prompt)
-        gemini_logger.debug(f"Received response from Gemini API: {response.text[:200]}...")
         
+        try:
+            response = model.generate_content(prompt)
+            gemini_logger.debug(f"Received response from Gemini API: {response.text[:200]}...")
+        except Exception as e:
+            error_logger.error(f"Gemini API error: {str(e)}", exc_info=True)
+            raise
+
+        # JSON 추출 및 파싱
         match = re.search(r'\{[\s\S]*\}', response.text)
         if not match:
-            error_msg = "Gemini 응답에서 JSON을 찾을 수 없습니다."
-            gemini_logger.error(error_msg)
+            error_msg = "No JSON found in Gemini response"
+            error_logger.error(f"{error_msg}\nFull response: {response.text}")
             raise ValueError(error_msg)
-            
+
         try:
             parsed_dict = json.loads(match.group())
             gemini_logger.debug("Successfully parsed JSON response")
+        except json.JSONDecodeError as e:
+            error_logger.error(f"JSON parsing error: {str(e)}\nResponse text: {response.text}", exc_info=True)
+            raise
+
+        try:
             result = ToneProfile(**parsed_dict)
             gemini_logger.info("Successfully created ToneProfile")
             return result
-            
-        except json.JSONDecodeError as e:
-            error_logger.error("JSON 파싱 오류", exc_info=True)
-            error_logger.error(f"응답 원문: {response.text}")
+        except Exception as e:
+            error_logger.error(f"Error creating ToneProfile: {str(e)}\nParsed dict: {parsed_dict}", exc_info=True)
             raise
-            
+
     except Exception as e:
-        error_logger.error("Unexpected error in analyze_tone", exc_info=True)
+        error_logger.error(f"Unexpected error in analyze_tone: {str(e)}", exc_info=True)
         raise
