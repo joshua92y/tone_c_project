@@ -14,9 +14,9 @@ app.include_router(history.router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 또는 ["http://localhost:54041"] 등으로 제한 가능
+    allow_origins=["https://joshua92y.github.io", "http://localhost:3000", "http://localhost:5173"],  # 실제 프론트엔드 도메인 추가
     allow_credentials=True,
-    allow_methods=["*"],  # ["POST", "GET", "OPTIONS"]만 설정해도 OK
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # 필요한 HTTP 메서드만 명시적으로 허용
     allow_headers=["*"],
 )
 

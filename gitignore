@@ -62,3 +62,7 @@ Desktop.ini
 # ========================
 app/output/
 app/history/
+
+# Logs
+logs/
+*.log

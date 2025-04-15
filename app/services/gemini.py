@@ -1,15 +1,21 @@
 import google.generativeai as genai
 import json
 import re
+import os
 from app.schemas import ToneProfile, RelationshipTone
 from app.core.config import GEMINI_API_KEY
+from app.core.logging_config import gemini_logger, error_logger
 
 genai.configure(api_key=GEMINI_API_KEY)
 
 model = genai.GenerativeModel("models/gemini-2.0-pro-exp")  # Gemini 모델 설정
 
 def analyze_tone(dialogue: list) -> ToneProfile:
-    prompt = f"""
+    try:
+        gemini_logger.info("Starting tone analysis")
+        gemini_logger.debug(f"Input dialogue length: {len(dialogue)}")
+        
+        prompt = f"""
 다음은 두 사람 간의 대화입니다:
 
 {chr(10).join(dialogue)}
@@ -42,17 +48,28 @@ JSON 형식:
 }}
 """
 
-    response = model.generate_content(prompt)
-
-    # Gemini 응답에서 JSON만 추출
-    match = re.search(r'\{[\s\S]*\}', response.text)
-    if not match:
-        raise ValueError("Gemini 응답에서 JSON을 찾을 수 없습니다.")
-
-    try:
-        parsed_dict = json.loads(match.group())  # ✅ dict 형식으로 파싱
-        return ToneProfile(**parsed_dict)        # ✅ Pydantic 모델로 변환
-    except json.JSONDecodeError as e:
-        print("❌ JSON 파싱 오류:", e)
-        print("🔍 응답 원문:", response.text)
+        gemini_logger.debug("Sending request to Gemini API")
+        response = model.generate_content(prompt)
+        gemini_logger.debug(f"Received response from Gemini API: {response.text[:200]}...")
+        
+        match = re.search(r'\{[\s\S]*\}', response.text)
+        if not match:
+            error_msg = "Gemini 응답에서 JSON을 찾을 수 없습니다."
+            gemini_logger.error(error_msg)
+            raise ValueError(error_msg)
+            
+        try:
+            parsed_dict = json.loads(match.group())
+            gemini_logger.debug("Successfully parsed JSON response")
+            result = ToneProfile(**parsed_dict)
+            gemini_logger.info("Successfully created ToneProfile")
+            return result
+            
+        except json.JSONDecodeError as e:
+            error_logger.error("JSON 파싱 오류", exc_info=True)
+            error_logger.error(f"응답 원문: {response.text}")
+            raise
+            
+    except Exception as e:
+        error_logger.error("Unexpected error in analyze_tone", exc_info=True)
         raise
