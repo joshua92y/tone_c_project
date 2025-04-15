@@ -4,7 +4,11 @@ import re
 import os
 from app.schemas import ToneProfile, RelationshipTone
 from app.core.config import GEMINI_API_KEY
-from app.core.logging_config import gemini_logger, error_logger
+import logging
+
+# 로거 설정
+gemini_logger = logging.getLogger('gemini')
+error_logger = logging.getLogger('error')
 
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -59,7 +63,6 @@ JSON 형식:
   "ai_recommendation_tone": "이 대화는 친구 간의 대화로, 반말과 유머가 섞인 톤을 추천합니다."
 }}
 """
-
         gemini_logger.debug("Sending request to Gemini API")
         
         try:

@@ -3,7 +3,6 @@ from app.schemas import AnalyzeRequest, ToneProfile
 from app.services.gemini import analyze_tone
 from app.api.storage import set_last_result
 from app.utils.dialogue import cut_dialogue_by_date
-from app.core.logging_config import api_logger, error_logger
 import logging
 import sys
 from pathlib import Path
