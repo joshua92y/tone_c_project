@@ -2,11 +2,16 @@
 import google.generativeai as genai
 import json
 import re
-from app.schemas import ToneProfile, RelationshipTone
+from app.schemas import ToneProfile
 from app.core.config import GEMINI_API_KEY
-from app.core.logging_config import gemini_logger, error_logger
+from app.core.logging_config import setup_logger
 
-# Gemini 모델 설정
+# 로거 생성: 순환 참조 없이 직접 설정
+# "gemini"는 이 모듈의 이름, ERROR 로거는 별도로 설정
+gemini_logger = setup_logger("gemini")
+error_logger = setup_logger("error", level=40)
+
+# Gemini 모델 초기화
 if not GEMINI_API_KEY:
     raise EnvironmentError("GEMINI_API_KEY is not set in the environment.")
 
@@ -20,6 +25,7 @@ def analyze_tone(dialogue: list[str]) -> ToneProfile:
     if not dialogue:
         raise ValueError("Dialogue input is empty or not provided")
 
+    # Gemini 프롬프트 작성
     prompt = f"""
 다음은 두 사람 간의 대화입니다:
 
@@ -50,6 +56,7 @@ JSON 형식:
   "ai_recommendation_tone": "이 대화는 친구 간의 대화로, 반말과 유머가 섞인 톤을 추천합니다."
 }}
 """
+
     try:
         gemini_logger.debug("Sending prompt to Gemini API")
         response = model.generate_content(prompt)
@@ -65,10 +72,10 @@ JSON 형식:
         gemini_logger.info("Successfully parsed tone profile")
         return result
 
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError:
         error_logger.error("JSON decode error from Gemini response", exc_info=True)
         raise ValueError("Gemini 응답을 JSON으로 변환하는 데 실패했습니다.")
 
-    except Exception as e:
+    except Exception:
         error_logger.error("Unhandled exception in analyze_tone", exc_info=True)
         raise RuntimeError("Gemini 분석 중 알 수 없는 오류가 발생했습니다.")

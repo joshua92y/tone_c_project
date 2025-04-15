@@ -1,90 +1,32 @@
-from fastapi import APIRouter, Query, Response, HTTPException
-from app.schemas import AnalyzeRequest, ToneProfile
-from app.services.gemini import analyze_tone
-from app.api.storage import set_last_result
-from app.utils.dialogue import cut_dialogue_by_date
+# app/core/logging_config.py
+# 이 모듈은 로깅 전용 모듈로, 어떤 다른 모듈도 import 하지 않고 오직 logger 정의만 담당합니다.
+
 import logging
 import sys
-from pathlib import Path
-from logging.handlers import RotatingFileHandler
+from typing import Optional
 
-router = APIRouter()
-
-# 로그 디렉토리 설정
-LOG_DIR = Path("/tmp/logs")  # Railway에서는 임시 디렉토리 사용
-LOG_DIR.mkdir(exist_ok=True)
-
-# 로거 설정
-def setup_logger(name: str, level=logging.INFO):
+# 공통 로거 생성 함수
+# - name: 로거 이름
+# - level: 로그 레벨 (기본은 INFO)
+# - stream: 출력 스트림 (기본은 sys.stdout)
+def setup_logger(name: str, level: int = logging.INFO, stream: Optional[object] = None) -> logging.Logger:
     formatter = logging.Formatter(
-        '%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        fmt='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-    # 콘솔 핸들러 설정 (Railway에서는 콘솔 로깅만 사용)
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
+    # 기본 출력 스트림 설정
+    if stream is None:
+        stream = sys.stdout
 
-    # 로거 설정
+    handler = logging.StreamHandler(stream)
+    handler.setFormatter(formatter)
+
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    
+
     # 중복 핸들러 방지
-    if not logger.handlers:
-        logger.addHandler(console_handler)
-    
+    if not logger.hasHandlers():
+        logger.addHandler(handler)
+
     return logger
-
-# 각 모듈별 로거 생성
-api_logger = setup_logger('api')
-gemini_logger = setup_logger('gemini')
-error_logger = setup_logger('error', level=logging.ERROR)
-
-@router.post("/analyze", response_model=ToneProfile)
-async def analyze_text_post(data: AnalyzeRequest, user_id: str = Query(...)):
-    try:
-        api_logger.info(f"Received POST request - user_id: {user_id}")
-        api_logger.debug(f"Request data: {data.dict()}")
-        
-        trimmed_dialogue = cut_dialogue_by_date(data.dialogue)
-        api_logger.debug(f"Trimmed dialogue length: {len(trimmed_dialogue)}")
-        
-        result = analyze_tone(trimmed_dialogue)
-        api_logger.info(f"Analysis completed successfully for user_id: {user_id}")
-        
-        set_last_result(user_id, result)
-        return result
-        
-    except Exception as e:
-        error_logger.error(f"Error in analyze_text_post - user_id: {user_id}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/analyze", response_model=ToneProfile)
-async def analyze_text_get(dialogue: list[str] = Query(...), user_id: str = Query(...)):
-    try:
-        api_logger.info(f"Received GET request - user_id: {user_id}")
-        api_logger.debug(f"Request dialogue length: {len(dialogue)}")
-        
-        trimmed_dialogue = cut_dialogue_by_date(dialogue)
-        api_logger.debug(f"Trimmed dialogue length: {len(trimmed_dialogue)}")
-        
-        result = analyze_tone(trimmed_dialogue)
-        api_logger.info(f"Analysis completed successfully for user_id: {user_id}")
-        
-        set_last_result(user_id, result)
-        return result
-        
-    except Exception as e:
-        error_logger.error(f"Error in analyze_text_get - user_id: {user_id}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.options("/analyze")
-async def preflight_analyze():
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
