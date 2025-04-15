@@ -16,7 +16,11 @@ logging.basicConfig(
 # 로거 생성
 logger = logging.getLogger("app")
 
-app = FastAPI()
+app = FastAPI(
+    title="Tone Analyzer API",
+    description="톤 분석 및 변환을 위한 API",
+    version="1.0.0"
+)
 
 # 시작 로그
 @app.on_event("startup")
@@ -47,13 +51,25 @@ app.include_router(history.router)
 # CORS 미들웨어 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://joshua92y.github.io", "http://localhost:3000", "http://localhost:5173"],
+    allow_origins=[
+        "https://joshua92y.github.io",  # GitHub Pages
+        "http://localhost:3000",        # 로컬 개발 환경
+        "http://localhost:5173"         # 로컬 개발 환경
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"],
     max_age=3600,
 )
+
+@app.get("/")
+async def root():
+    return {
+        "message": "Tone Analyzer API is running",
+        "docs_url": "/docs",
+        "redoc_url": "/redoc"
+    }
 
 @app.get("/health")
 async def health_check():
@@ -67,13 +83,12 @@ async def preflight_global(request: Request, rest_of_path: str):
         status_code=200,
         content={"message": "Preflight OK"},
         headers={
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": "https://joshua92y.github.io",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
             "Access-Control-Max-Age": "3600",
         }
     )
-
 # 전역 예외 핸들러
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
