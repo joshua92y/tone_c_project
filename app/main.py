@@ -52,7 +52,8 @@ app.include_router(history.router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://joshua92y.github.io",  # GitHub Pages
+        "https://joshua92y.github.io",  # GitHub Pages 메인 도메인
+        "https://joshua92y.github.io/tone_c_project",  # 프로젝트 서브도메인
         "http://localhost:3000",        # 로컬 개발 환경
         "http://localhost:5173"         # 로컬 개발 환경
     ],
@@ -79,16 +80,25 @@ async def health_check():
 @app.options("/{rest_of_path:path}")
 async def preflight_global(request: Request, rest_of_path: str):
     logger.info(f"Preflight request for path: {rest_of_path}")
-    return JSONResponse(
-        status_code=200,
-        content={"message": "Preflight OK"},
-        headers={
-            "Access-Control-Allow-Origin": "https://joshua92y.github.io",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
-            "Access-Control-Max-Age": "3600",
-        }
-    )
+    origin = request.headers.get("origin", "")
+    allowed_origins = [
+        "https://joshua92y.github.io",
+        "https://joshua92y.github.io/tone_c_project"
+    ]
+    
+    if origin in allowed_origins:
+        return JSONResponse(
+            status_code=200,
+            content={"message": "Preflight OK"},
+            headers={
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+                "Access-Control-Max-Age": "3600",
+            }
+        )
+    return JSONResponse(status_code=403, content={"message": "Forbidden"})
+
 # 전역 예외 핸들러
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
