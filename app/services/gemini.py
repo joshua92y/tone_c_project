@@ -1,37 +1,26 @@
+# services/gemini.py
 import google.generativeai as genai
 import json
 import re
-import os
 from app.schemas import ToneProfile, RelationshipTone
 from app.core.config import GEMINI_API_KEY
-import logging
+from app.core.logging_config import gemini_logger, error_logger
 
-# 로거 설정
-gemini_logger = logging.getLogger('gemini')
-error_logger = logging.getLogger('error')
+# Gemini 모델 설정
+if not GEMINI_API_KEY:
+    raise EnvironmentError("GEMINI_API_KEY is not set in the environment.")
 
 genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("models/gemini-2.0-pro-exp")
 
-model = genai.GenerativeModel("models/gemini-2.0-pro-exp")  # Gemini 모델 설정
+def analyze_tone(dialogue: list[str]) -> ToneProfile:
+    gemini_logger.info("Starting tone analysis")
+    gemini_logger.debug(f"Input dialogue length: {len(dialogue)}")
 
-def analyze_tone(dialogue: list) -> ToneProfile:
-    try:
-        gemini_logger.info("Starting tone analysis")
-        gemini_logger.debug(f"Input dialogue length: {len(dialogue)}")
-        
-        # API 키 확인
-        if not GEMINI_API_KEY:
-            error_msg = "GEMINI_API_KEY is not set"
-            error_logger.error(error_msg)
-            raise ValueError(error_msg)
-            
-        # 대화 내용 검증
-        if not dialogue or not isinstance(dialogue, list):
-            error_msg = f"Invalid dialogue format: {type(dialogue)}"
-            error_logger.error(error_msg)
-            raise ValueError(error_msg)
+    if not dialogue:
+        raise ValueError("Dialogue input is empty or not provided")
 
-        prompt = f"""
+    prompt = f"""
 다음은 두 사람 간의 대화입니다:
 
 {chr(10).join(dialogue)}
@@ -40,11 +29,9 @@ def analyze_tone(dialogue: list) -> ToneProfile:
 그 관계에 어울리는 말투 분석 결과를 아래 JSON 형식으로 생성해주세요.
 
 주의:
-- 꼭 실제 분석 결과를 작성하세요. 예시 형식 그대로는 반환하지 마세요.
 - 설명 없이 JSON 데이터만 응답하세요.
 
 JSON 형식:
-
 {{
   "name": "말투 이름",
   "tone": "친근한, 정중한 등",
@@ -59,41 +46,29 @@ JSON 형식:
     {{ "context": "직장", "tone": "존댓말 + 공손함" }}
   ],
   "sample_phrases": ["와 진짜 대박!", "고마워~", "ㅇㅋㅋㅋ"],
-  "notes": "이 말투는 긍정적이며 편안한 분위기를 전달합니다."
+  "notes": "이 말투는 긍정적이며 편안한 분위기를 전달합니다.",
   "ai_recommendation_tone": "이 대화는 친구 간의 대화로, 반말과 유머가 섞인 톤을 추천합니다."
 }}
 """
-        gemini_logger.debug("Sending request to Gemini API")
-        
-        try:
-            response = model.generate_content(prompt)
-            gemini_logger.debug(f"Received response from Gemini API: {response.text[:200]}...")
-        except Exception as e:
-            error_logger.error(f"Gemini API error: {str(e)}", exc_info=True)
-            raise
+    try:
+        gemini_logger.debug("Sending prompt to Gemini API")
+        response = model.generate_content(prompt)
+        raw_output = response.text.strip()
+        gemini_logger.debug(f"Gemini raw output: {raw_output[:200]}...")
 
-        # JSON 추출 및 파싱
-        match = re.search(r'\{[\s\S]*\}', response.text)
+        match = re.search(r'\{[\s\S]*\}', raw_output)
         if not match:
-            error_msg = "No JSON found in Gemini response"
-            error_logger.error(f"{error_msg}\nFull response: {response.text}")
-            raise ValueError(error_msg)
+            raise ValueError("Failed to find JSON block in Gemini response")
 
-        try:
-            parsed_dict = json.loads(match.group())
-            gemini_logger.debug("Successfully parsed JSON response")
-        except json.JSONDecodeError as e:
-            error_logger.error(f"JSON parsing error: {str(e)}\nResponse text: {response.text}", exc_info=True)
-            raise
+        parsed_json = json.loads(match.group())
+        result = ToneProfile(**parsed_json)
+        gemini_logger.info("Successfully parsed tone profile")
+        return result
 
-        try:
-            result = ToneProfile(**parsed_dict)
-            gemini_logger.info("Successfully created ToneProfile")
-            return result
-        except Exception as e:
-            error_logger.error(f"Error creating ToneProfile: {str(e)}\nParsed dict: {parsed_dict}", exc_info=True)
-            raise
+    except json.JSONDecodeError as e:
+        error_logger.error("JSON decode error from Gemini response", exc_info=True)
+        raise ValueError("Gemini 응답을 JSON으로 변환하는 데 실패했습니다.")
 
     except Exception as e:
-        error_logger.error(f"Unexpected error in analyze_tone: {str(e)}", exc_info=True)
-        raise
+        error_logger.error("Unhandled exception in analyze_tone", exc_info=True)
+        raise RuntimeError("Gemini 분석 중 알 수 없는 오류가 발생했습니다.")
