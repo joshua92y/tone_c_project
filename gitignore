@@ -46,6 +46,7 @@ build/
 **/*.pyd
 .venv/
 .env/
+.env
 venv/
 *.log
 
