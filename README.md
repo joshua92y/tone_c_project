@@ -19,3 +19,14 @@ http://127.0.0.1:8000/docs
 
 브런치 데스트용 문구 추가
 https://joshua92y.github.io/tone_c_project/
+
+프론트 재배포 명령어 흐름
+git checkout --orphan gh-pages
+git reset --hard
+git commit --allow-empty -m "init gh-pages"
+git push origin gh-pages
+git checkout main
+
+빌드 흐름
+cd tone_web
+flutter build web
