@@ -14,7 +14,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  String? _selectedUser;
+  final _userController = TextEditingController();
   List<String> _userIds = [];
   final String hostApiServer = 'https://tonecproject-production.up.railway.app';
 
@@ -43,44 +43,57 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedUser = _userController.text.trim();
+
     return Scaffold(
       appBar: AppBar(title: const Text('💬 말투 분석 시스템')),
-      body: Center(
+      body: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            DropdownButton<String>(
-              value: _selectedUser,
-              hint: const Text('사용자 선택'),
-              items: _userIds.map((id) => DropdownMenuItem(value: id, child: Text(id))).toList(),
-              onChanged: (value) {
-                setState(() => _selectedUser = value);
+            Autocomplete<String>(
+              optionsBuilder: (TextEditingValue textEditingValue) {
+                return _userIds.where((id) => id.contains(textEditingValue.text));
+              },
+              onSelected: (value) => _userController.text = value,
+              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                return TextField(
+                  controller: _userController,
+                  focusNode: focusNode,
+                  decoration: const InputDecoration(
+                    labelText: '사용자 ID 입력 또는 선택',
+                    border: OutlineInputBorder(),
+                  ),
+                );
               },
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               icon: const Icon(Icons.analytics),
               label: const Text('말투 분석하기'),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PresetPage(userId: _selectedUser!),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.sync_alt),
-              label: const Text('말투 변환'),
-              onPressed: _selectedUser == null
+              onPressed: selectedUser.isEmpty
                   ? null
                   : () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => ConvertPage(userId: _selectedUser!),
+                          builder: (_) => PresetPage(userId: selectedUser),
+                        ),
+                      );
+                    },
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.sync_alt),
+              label: const Text('말투 변환'),
+              onPressed: selectedUser.isEmpty
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ConvertPage(userId: selectedUser),
                         ),
                       );
                     },
@@ -89,14 +102,16 @@ class _HomePageState extends State<HomePage> {
             ElevatedButton.icon(
               icon: const Icon(Icons.library_books),
               label: const Text('프리셋 관리'),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PresetPage(userId: _selectedUser!),
-                  ),
-                );
-              },
+              onPressed: selectedUser.isEmpty
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AnalyzePage(userId: selectedUser),
+                        ),
+                      );
+                    },
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
