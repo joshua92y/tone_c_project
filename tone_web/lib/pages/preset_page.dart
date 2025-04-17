@@ -3,24 +3,20 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class PresetPage extends StatefulWidget {
-  const PresetPage({super.key});
+  final String userId;
+  const PresetPage({super.key, required this.userId});
 
   @override
   State<PresetPage> createState() => _PresetPageState();
 }
 
 class _PresetPageState extends State<PresetPage> {
-  // 사용자 ID와 API 서버 주소
-  final String userId = 'joshua';
   final String hostApiServer = 'https://tonecproject-production.up.railway.app';
+  List<String> _presetNames = [];
+  String? _selectedPreset;
+  Map<String, dynamic>? _presetDetail;
+  bool _loading = false;
 
-  // 상태 변수들
-  List<String> _presetNames = []; // 프리셋 이름 목록
-  String? _selectedPreset; // 현재 선택된 프리셋 이름
-  Map<String, dynamic>? _presetDetail; // 선택된 프리셋 상세정보
-  bool _loading = false; // 로딩 상태 여부
-
-  // 입력 필드 컨트롤러
   final _nameController = TextEditingController();
   final _toneController = TextEditingController();
   final _emotionController = TextEditingController();
@@ -29,16 +25,14 @@ class _PresetPageState extends State<PresetPage> {
   @override
   void initState() {
     super.initState();
-    _loadPresetList(); // 위젯이 시작될 때 프리셋 목록을 불러옴
+    _loadPresetList();
   }
 
-  // 프리셋 목록 불러오기
   Future<void> _loadPresetList() async {
     setState(() => _loading = true);
     try {
-      final uri = Uri.parse('$hostApiServer/presets/$userId');
+      final uri = Uri.parse('$hostApiServer/presets/${widget.userId}');
       final response = await http.get(uri);
-
       if (response.statusCode == 200) {
         final decoded = utf8.decode(response.bodyBytes);
         setState(() {
@@ -54,18 +48,15 @@ class _PresetPageState extends State<PresetPage> {
     }
   }
 
-  // 프리셋 상세 정보 불러오기
   Future<void> _loadPresetDetail(String presetName) async {
     setState(() {
       _selectedPreset = presetName;
       _presetDetail = null;
       _loading = true;
     });
-
     try {
-      final uri = Uri.parse('$hostApiServer/presets/$userId/$presetName');
+      final uri = Uri.parse('$hostApiServer/presets/${widget.userId}/$presetName');
       final response = await http.get(uri);
-
       if (response.statusCode == 200) {
         final decoded = utf8.decode(response.bodyBytes);
         setState(() {
@@ -81,14 +72,13 @@ class _PresetPageState extends State<PresetPage> {
     }
   }
 
-  // 프리셋 삭제하기
   Future<void> _deletePreset(String presetName) async {
     try {
-      final uri = Uri.parse('$hostApiServer/presets/$userId/$presetName');
+      final uri = Uri.parse('$hostApiServer/presets/${widget.userId}/$presetName');
       final response = await http.delete(uri);
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('삭제됨')));
-        await _loadPresetList(); // 삭제 후 목록 다시 불러오기
+        await _loadPresetList();
       } else {
         throw Exception('삭제 실패');
       }
@@ -97,10 +87,8 @@ class _PresetPageState extends State<PresetPage> {
     }
   }
 
-  // 프리셋 저장하기
   Future<void> _savePreset() async {
-    final uri = Uri.parse('$hostApiServer/presets/$userId');
-
+    final uri = Uri.parse('$hostApiServer/presets/${widget.userId}');
     final presetData = {
       "name": _nameController.text.trim(),
       "tone": _toneController.text.trim(),
@@ -115,17 +103,15 @@ class _PresetPageState extends State<PresetPage> {
       "notes": "",
       "ai_recommendation_tone": ""
     };
-
     try {
       final response = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(presetData),
       );
-
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('프리셋 저장 완료')));
-        await _loadPresetList(); // 저장 후 목록 새로고침
+        await _loadPresetList();
       } else {
         throw Exception('프리셋 저장 실패');
       }
@@ -134,7 +120,6 @@ class _PresetPageState extends State<PresetPage> {
     }
   }
 
-  // 프리셋 목록 UI 구성
   Widget _buildPresetList() {
     if (_presetNames.isEmpty) return const Text('프리셋이 없습니다.');
     return Column(
@@ -152,7 +137,6 @@ class _PresetPageState extends State<PresetPage> {
     );
   }
 
-  // 프리셋 상세 UI 구성
   Widget _buildPresetDetail() {
     if (_presetDetail == null) return const SizedBox.shrink();
     return Card(
@@ -175,7 +159,6 @@ class _PresetPageState extends State<PresetPage> {
     );
   }
 
-  // 전체 UI 구성
   @override
   Widget build(BuildContext context) {
     return Scaffold(

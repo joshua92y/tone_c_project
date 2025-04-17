@@ -1,18 +1,18 @@
-// ✅ 수정된 convert_page.dart
+// ✅ ConvertPage에서 userId를 HomePage에서 받아오도록 변경
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class ConvertPage extends StatefulWidget {
-  const ConvertPage({super.key});
+  final String userId;
+  const ConvertPage({super.key, required this.userId});
 
   @override
   State<ConvertPage> createState() => _ConvertPageState();
 }
 
 class _ConvertPageState extends State<ConvertPage> {
-  final _userIdController = TextEditingController(text: 'joshua');
   final _textController = TextEditingController();
   String _result = '';
   String _autoPresetName = '';
@@ -30,7 +30,7 @@ class _ConvertPageState extends State<ConvertPage> {
   }
 
   Future<void> _fetchPresets() async {
-    final userId = _userIdController.text.trim();
+    final userId = widget.userId.trim();
     try {
       final uri = Uri.parse('$hostApiServer/presets/$userId');
       final response = await http.get(uri);
@@ -51,7 +51,7 @@ class _ConvertPageState extends State<ConvertPage> {
   }
 
   Future<void> _saveToHistory(String convertedText) async {
-    final userId = _userIdController.text.trim();
+    final userId = widget.userId.trim();
     try {
       await http.post(
         Uri.parse('$hostApiServer/history/$userId'),
@@ -64,7 +64,7 @@ class _ConvertPageState extends State<ConvertPage> {
   }
 
   Future<void> _convertText() async {
-    final userId = _userIdController.text.trim();
+    final userId = widget.userId.trim();
     if (_selectedPreset == null || userId.isEmpty) return;
     setState(() => _loading = true);
 
@@ -112,19 +112,6 @@ class _ConvertPageState extends State<ConvertPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(
-              controller: _userIdController,
-              decoration: InputDecoration(
-                labelText: '사용자 ID (user_id)',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: _fetchPresets,
-                ),
-                border: const OutlineInputBorder(),
-              ),
-              onSubmitted: (_) => _fetchPresets(),
-            ),
-            const SizedBox(height: 12),
             TextField(
               controller: _textController,
               maxLines: 3,
