@@ -10,20 +10,22 @@ class AnalyzePage extends StatefulWidget {
 }
 
 class _AnalyzePageState extends State<AnalyzePage> {
-  final _dialogueController = TextEditingController(); // 대화 입력 컨트롤러
-  final _presetNameController = TextEditingController(); // 프리셋 이름 입력 컨트롤러
+  final _userIdController = TextEditingController(text: 'test'); // 사용자 ID 입력
+  final _dialogueController = TextEditingController(); // 대화 입력
+  final _presetNameController = TextEditingController(); // 프리셋 이름 입력
 
   bool _loading = false; // 로딩 상태
-  Map<String, dynamic>? _result; // 분석 결과 저장 변수
+  Map<String, dynamic>? _result; // 분석 결과 저장
 
-  final String hostApiServer = 'https://tonecproject-production.up.railway.app'; // 배포된 API 주소
+  final String hostApiServer = 'https://tonecproject-production.up.railway.app'; // API 주소
 
   // 말투 분석 요청
   Future<void> _analyzeTone() async {
     setState(() => _loading = true);
 
+    final userId = _userIdController.text.trim();
     final dialogueLines = _dialogueController.text.trim().split('\n');
-    final uri = Uri.parse('$hostApiServer/analyze?user_id=test');
+    final uri = Uri.parse('$hostApiServer/analyze?user_id=$userId');
 
     try {
       final response = await http.post(
@@ -58,8 +60,9 @@ class _AnalyzePageState extends State<AnalyzePage> {
 
     final profile = Map<String, dynamic>.from(_result!);
     profile['name'] = _presetNameController.text.trim();
+    final userId = _userIdController.text.trim();
+    final uri = Uri.parse('$hostApiServer/presets/$userId');
 
-    final uri = Uri.parse('$hostApiServer/presets/test'); // user_id는 test로 가정
     try {
       final response = await http.post(
         uri,
@@ -168,6 +171,15 @@ class _AnalyzePageState extends State<AnalyzePage> {
         child: Column(
           children: [
             TextField(
+              controller: _userIdController,
+              decoration: const InputDecoration(
+                labelText: '사용자 ID (user_id)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            TextField(
               controller: _dialogueController,
               maxLines: 6,
               decoration: const InputDecoration(
@@ -176,6 +188,7 @@ class _AnalyzePageState extends State<AnalyzePage> {
               ),
             ),
             const SizedBox(height: 12),
+
             ElevatedButton(
               onPressed: _loading ? null : _analyzeTone,
               child: _loading

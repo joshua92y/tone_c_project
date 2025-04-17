@@ -29,4 +29,5 @@ git checkout main
 
 빌드 흐름
 cd tone_web
-flutter build web
+flutter build web --base-href="/tone_c_project/"
+git subtree push --prefix=tone_web/build/web origin gh-pages

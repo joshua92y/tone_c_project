@@ -1,4 +1,6 @@
+// ✅ 수정된 convert_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -10,25 +12,25 @@ class ConvertPage extends StatefulWidget {
 }
 
 class _ConvertPageState extends State<ConvertPage> {
-  final String userId = 'joshua'; // 사용자 ID
-  final String hostApiServer = 'https://tonecproject-production.up.railway.app'; // 배포된 API 서버 주소
+  final _userIdController = TextEditingController(text: 'joshua');
+  final _textController = TextEditingController();
+  String _result = '';
+  String _autoPresetName = '';
+  bool _loading = false;
 
-  final _textController = TextEditingController(); // 입력 텍스트 컨트롤러
-  String _result = ''; // 변환 결과 텍스트
-  String _autoPresetName = ''; // 자동 추천된 프리셋 이름
-  bool _loading = false; // 로딩 여부
+  final String hostApiServer = 'https://tonecproject-production.up.railway.app';
 
-  List<String> _presetList = []; // 프리셋 목록
-  String? _selectedPreset; // 선택된 프리셋 이름
+  List<String> _presetList = [];
+  String? _selectedPreset;
 
   @override
   void initState() {
     super.initState();
-    _fetchPresets(); // 프리셋 목록 로딩
+    _fetchPresets();
   }
 
-  // 프리셋 목록 불러오기
   Future<void> _fetchPresets() async {
+    final userId = _userIdController.text.trim();
     try {
       final uri = Uri.parse('$hostApiServer/presets/$userId');
       final response = await http.get(uri);
@@ -48,8 +50,8 @@ class _ConvertPageState extends State<ConvertPage> {
     }
   }
 
-  // 변환 결과를 히스토리에 저장
   Future<void> _saveToHistory(String convertedText) async {
+    final userId = _userIdController.text.trim();
     try {
       await http.post(
         Uri.parse('$hostApiServer/history/$userId'),
@@ -61,26 +63,9 @@ class _ConvertPageState extends State<ConvertPage> {
     }
   }
 
-  // 최근 대화 히스토리 가져오기 (자동 추천용)
-  Future<List<String>> _getDialogueContext() async {
-    try {
-      final response = await http.get(Uri.parse('$hostApiServer/history/$userId'));
-      if (response.statusCode == 200) {
-        final decoded = utf8.decode(response.bodyBytes);
-        final List<dynamic> history = jsonDecode(decoded);
-        return history.length >= 5
-            ? List<String>.from(history.sublist(history.length - 5))
-            : [];
-      }
-    } catch (e) {
-      debugPrint('히스토리 불러오기 실패: $e');
-    }
-    return [];
-  }
-
-  // 선택된 프리셋으로 변환 요청
   Future<void> _convertText() async {
-    if (_selectedPreset == null) return;
+    final userId = _userIdController.text.trim();
+    if (_selectedPreset == null || userId.isEmpty) return;
     setState(() => _loading = true);
 
     final uri = Uri.parse('$hostApiServer/convert/from-preset');
@@ -112,47 +97,13 @@ class _ConvertPageState extends State<ConvertPage> {
     }
   }
 
-  // 자동 추천 프리셋으로 변환 요청
-  Future<void> _autoConvert() async {
-    setState(() {
-      _loading = true;
-      _autoPresetName = '';
-    });
-
-    final contextList = await _getDialogueContext();
-
-    final uri = Uri.parse('$hostApiServer/convert/auto-preset');
-    final requestBody = {
-      "user_id": userId,
-      "text": _textController.text.trim(),
-      "dialogue_context": contextList,
-    };
-
-    try {
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
-      );
-
-      if (response.statusCode == 200) {
-        final decoded = utf8.decode(response.bodyBytes);
-        final json = jsonDecode(decoded);
-        setState(() {
-          _result = json['converted_text'];
-          _autoPresetName = json['preset_name'];
-        });
-      } else {
-        throw Exception('자동 변환 실패');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('오류: $e')));
-    } finally {
-      setState(() => _loading = false);
-    }
+  void _copyResult() {
+    Clipboard.setData(ClipboardData(text: _result));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('결과가 복사되었습니다.')),
+    );
   }
 
-  // UI 구성
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -161,6 +112,19 @@ class _ConvertPageState extends State<ConvertPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            TextField(
+              controller: _userIdController,
+              decoration: InputDecoration(
+                labelText: '사용자 ID (user_id)',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _fetchPresets,
+                ),
+                border: const OutlineInputBorder(),
+              ),
+              onSubmitted: (_) => _fetchPresets(),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _textController,
               maxLines: 3,
@@ -177,9 +141,10 @@ class _ConvertPageState extends State<ConvertPage> {
               ),
               value: _selectedPreset,
               items: _presetList.map((name) {
+                final shortened = name.length > 10 ? name.substring(0, 10) + '...' : name;
                 return DropdownMenuItem(
                   value: name,
-                  child: Text(name),
+                  child: Text(shortened),
                 );
               }).toList(),
               onChanged: (value) {
@@ -194,13 +159,7 @@ class _ConvertPageState extends State<ConvertPage> {
                   onPressed: _loading ? null : _convertText,
                   child: _loading
                       ? const CircularProgressIndicator()
-                      : const Text('선택된 프리셋으로 변환'),
-                ),
-                ElevatedButton(
-                  onPressed: _loading ? null : _autoConvert,
-                  child: _loading
-                      ? const CircularProgressIndicator()
-                      : const Text('자동 추천으로 변환'),
+                      : const Text('변환하기'),
                 ),
               ],
             ),
@@ -213,14 +172,19 @@ class _ConvertPageState extends State<ConvertPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (_autoPresetName.isNotEmpty)
-                        Text("\u{1F9E0} 추천된 프리셋: $_autoPresetName",
-                            style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
                       Text(
                         _result,
                         style: const TextStyle(fontSize: 16),
                       ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: _copyResult,
+                          icon: const Icon(Icons.copy),
+                          label: const Text('복사'),
+                        ),
+                      )
                     ],
                   ),
                 ),
