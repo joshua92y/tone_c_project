@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'analyze_page.dart';
 import 'preset_page.dart';
 import 'convert_page.dart';
+import 'history_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,8 +16,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _userController = TextEditingController();
-  String? _selectedUser;
   List<String> _userIds = [];
+  bool _loading = false;
   final String hostApiServer = 'https://tonecproject-production.up.railway.app';
 
   @override
@@ -25,7 +26,14 @@ class _HomePageState extends State<HomePage> {
     _fetchUserIds();
   }
 
+  @override
+  void dispose() {
+    _userController.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchUserIds() async {
+    setState(() => _loading = true);
     try {
       final uri = Uri.parse('$hostApiServer/user-ids');
       final response = await http.get(uri);
@@ -38,7 +46,39 @@ class _HomePageState extends State<HomePage> {
         throw Exception('유저 목록 불러오기 실패');
       }
     } catch (e) {
-      debugPrint('유저 목록 로딩 오류: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('유저 목록 로딩 오류: $e')),
+      );
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _handleUserSelection(String userId) async {
+    if (!_userIds.contains(userId)) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('신규 사용자'),
+          content: Text('사용자 "$userId"가 존재하지 않습니다. 추가하시겠습니까?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+      if (confirm == true) {
+        setState(() => _userIds.add(userId));
+      } else {
+        _userController.clear();
+        return;
+      }
     }
   }
 
@@ -47,7 +87,25 @@ class _HomePageState extends State<HomePage> {
     final userId = _userController.text.trim();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('💬 말투 분석 시스템')),
+      appBar: AppBar(
+        title: const Text('💬 말투 분석 시스템'),
+        actions: [
+          if (_loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -55,107 +113,110 @@ class _HomePageState extends State<HomePage> {
           children: [
             Autocomplete<String>(
               optionsBuilder: (TextEditingValue textEditingValue) {
-                return _userIds.where((id) => id.contains(textEditingValue.text));
+                if (textEditingValue.text.isEmpty) {
+                  return _userIds;
+                }
+                return _userIds.where((id) => 
+                  id.toLowerCase().contains(textEditingValue.text.toLowerCase())
+                );
               },
-              onSelected: (value) => _userController.text = value,
+              onSelected: (value) {
+                _userController.text = value;
+                _handleUserSelection(value);
+              },
               fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                controller.addListener(() {
-                  _userController.text = controller.text;
-                });
                 return TextField(
                   controller: controller,
                   focusNode: focusNode,
-                  decoration: const InputDecoration(
+                  onSubmitted: (value) {
+                    if (value.isNotEmpty) {
+                      _userController.text = value;
+                      _handleUserSelection(value);
+                    }
+                  },
+                  decoration: InputDecoration(
                     labelText: '사용자 ID 입력 또는 선택',
-                    border: OutlineInputBorder(),
+                    hintText: '입력 후 Enter 또는 목록에서 선택',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: controller.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              controller.clear();
+                              _userController.clear();
+                            },
+                          )
+                        : null,
                   ),
                 );
               },
             ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () async {
-                final enteredId = _userController.text.trim();
-                if (!_userIds.contains(enteredId)) {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('신규 사용자'),
-                      content: Text('사용자 "${_userController.text.trim()}"는 존재하지 않습니다. 추가하시겠습니까?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('취소'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('확인'),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirm != true) return;
-                  setState(() => _userIds.add(enteredId));
-                }
-                setState(() => _selectedUser = enteredId);
-              },
-              child: const Text('사용자 선택'),
-            ),
             const SizedBox(height: 20),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.analytics),
-              label: const Text('말투 분석하기'),
-              onPressed: userId.isEmpty
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AnalyzePage(userId: userId),
-                        ),
-                      );
-                    },
+            _buildFeatureButton(
+              icon: Icons.analytics,
+              label: '말투 분석하기',
+              enabled: userId.isNotEmpty,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AnalyzePage(userId: userId),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.sync_alt),
-              label: const Text('말투 변환'),
-              onPressed: userId.isEmpty
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ConvertPage(userId: userId),
-                        ),
-                      );
-                    },
+            _buildFeatureButton(
+              icon: Icons.sync_alt,
+              label: '말투 변환',
+              enabled: userId.isNotEmpty,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ConvertPage(userId: userId),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.library_books),
-              label: const Text('프리셋 관리'),
-              onPressed: userId.isEmpty
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => PresetPage(userId: userId),
-                        ),
-                      );
-                    },
+            _buildFeatureButton(
+              icon: Icons.library_books,
+              label: '프리셋 관리',
+              enabled: userId.isNotEmpty,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PresetPage(userId: userId),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.history),
-              label: const Text('히스토리 보기'),
-              onPressed: () {
-                Navigator.pushNamed(context, '/history');
-              },
+            _buildFeatureButton(
+              icon: Icons.history,
+              label: '히스토리 보기',
+              enabled: userId.isNotEmpty,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => HistoryPage(userId: userId),
+                ),
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureButton({
+    required IconData icon,
+    required String label,
+    required bool enabled,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      icon: Icon(icon),
+      label: Text(label),
+      onPressed: enabled ? onPressed : null,
+      style: ElevatedButton.styleFrom(
+        minimumSize: const Size(200, 45),
       ),
     );
   }

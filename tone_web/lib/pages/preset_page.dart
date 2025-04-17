@@ -28,10 +28,43 @@ class _PresetPageState extends State<PresetPage> {
   final _notesController = TextEditingController();
   final _aiToneController = TextEditingController();
 
+  final _newPresetControllers = {
+    'name': TextEditingController(),
+    'tone': TextEditingController(),
+    'emotion': TextEditingController(),
+    'formality': TextEditingController(),
+    'vocab': TextEditingController(),
+    'sentence': TextEditingController(),
+    'expression': TextEditingController(),
+    'intent': TextEditingController(),
+    'notes': TextEditingController(),
+  };
+
   @override
   void initState() {
     super.initState();
     _loadPresetList();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _toneController.dispose();
+    _emotionController.dispose();
+    _formalityController.dispose();
+    _vocabController.dispose();
+    _sentenceController.dispose();
+    _expressionController.dispose();
+    _intentController.dispose();
+    _notesController.dispose();
+    _aiToneController.dispose();
+
+    _newPresetControllers.values.forEach((controller) => controller.dispose());
+    super.dispose();
+  }
+
+  void _clearNewPresetControllers() {
+    _newPresetControllers.values.forEach((controller) => controller.clear());
   }
 
   Future<void> _loadPresetList() async {
@@ -104,6 +137,105 @@ class _PresetPageState extends State<PresetPage> {
     }
   }
 
+  Future<bool> _checkPresetExists(String name) async {
+    try {
+      final uri = Uri.parse('$hostApiServer/presets/${widget.userId}/$name');
+      final response = await http.get(uri);
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> _savePreset({bool isNew = false, Map<String, TextEditingController>? controllers}) async {
+    final effectiveControllers = controllers ?? {
+      'name': _nameController,
+      'tone': _toneController,
+      'emotion': _emotionController,
+      'formality': _formalityController,
+      'vocab': _vocabController,
+      'sentence': _sentenceController,
+      'expression': _expressionController,
+      'intent': _intentController,
+      'notes': _notesController,
+    };
+
+    final name = effectiveControllers['name']!.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('프리셋 이름을 입력해주세요.')),
+      );
+      return;
+    }
+
+    if (isNew || (name != _selectedPreset)) {
+      final exists = await _checkPresetExists(name);
+      if (exists) {
+        final overwrite = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('프리셋 덮어쓰기'),
+            content: Text('이미 "$name" 프리셋이 존재합니다. 덮어쓰시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('덮어쓰기'),
+              ),
+            ],
+          ),
+        );
+        if (overwrite != true) return;
+      }
+    }
+
+    final uri = Uri.parse('$hostApiServer/presets/${widget.userId}');
+    final presetData = {
+      "name": name,
+      "tone": effectiveControllers['tone']!.text.trim(),
+      "emotion_tendency": effectiveControllers['emotion']!.text.trim(),
+      "formality": effectiveControllers['formality']!.text.trim(),
+      "vocab_style": effectiveControllers['vocab']!.text.trim().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+      "sentence_style": effectiveControllers['sentence']!.text.trim().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+      "expression_freq": effectiveControllers['expression']!.text.trim().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+      "intent_bias": effectiveControllers['intent']!.text.trim().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+      "relationship_tendency": [],
+      "sample_phrases": [],
+      "notes": effectiveControllers['notes']!.text.trim(),
+    };
+
+    if (!isNew) {
+      presetData["ai_recommendation_tone"] = _aiToneController.text.trim();
+    }
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(presetData),
+      );
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${isNew ? "새 프리셋이" : "프리셋이"} 저장되었습니다.')),
+        );
+        if (isNew) {
+          _clearNewPresetControllers();
+          Navigator.pop(context);
+        }
+        await _loadPresetList();
+      } else {
+        throw Exception('저장 실패 (${response.statusCode})');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('저장 오류: $e')),
+      );
+    }
+  }
+
   Widget _buildPresetDetail() {
     if (_presetDetail == null) return const SizedBox.shrink();
     return Card(
@@ -123,12 +255,16 @@ class _PresetPageState extends State<PresetPage> {
             TextField(controller: _expressionController, decoration: const InputDecoration(labelText: '표현 빈도 (콤마 구분)')),
             TextField(controller: _intentController, decoration: const InputDecoration(labelText: '의도 성향 (콤마 구분)')),
             TextField(controller: _notesController, decoration: const InputDecoration(labelText: '비고')),
-            TextField(controller: _aiToneController, decoration: const InputDecoration(labelText: 'AI 추천 말투')),
+            TextField(
+              controller: _aiToneController,
+              decoration: const InputDecoration(labelText: 'AI 추천 톤'),
+              enabled: false,
+            ),
             const SizedBox(height: 8),
             ElevatedButton.icon(
               icon: const Icon(Icons.save),
               label: const Text('프리셋 수정 저장'),
-              onPressed: _savePreset,
+              onPressed: () => _savePreset(isNew: false),
             ),
           ],
         ),
@@ -174,42 +310,8 @@ class _PresetPageState extends State<PresetPage> {
     );
   }
 
-  Future<void> _savePreset() async {
-    final uri = Uri.parse('$hostApiServer/presets/${widget.userId}');
-    final presetData = {
-      "name": _nameController.text.trim(),
-      "tone": _toneController.text.trim(),
-      "emotion_tendency": _emotionController.text.trim(),
-      "formality": _formalityController.text.trim(),
-      "vocab_style": _vocabController.text.trim().split(',').map((e) => e.trim()).toList(),
-      "sentence_style": _sentenceController.text.trim().split(',').map((e) => e.trim()).toList(),
-      "expression_freq": _expressionController.text.trim().split(',').map((e) => e.trim()).toList(),
-      "intent_bias": _intentController.text.trim().split(',').map((e) => e.trim()).toList(),
-      "relationship_tendency": [],
-      "sample_phrases": [],
-      "notes": _notesController.text.trim(),
-      "ai_recommendation_tone": _aiToneController.text.trim()
-    };
-    try {
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(presetData),
-      );
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('프리셋 저장 완료')));
-        await _loadPresetList();
-      } else {
-        throw Exception('프리셋 저장 실패');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('저장 오류: $e')));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final _newPresetNameController = TextEditingController();
     return Scaffold(
       appBar: AppBar(title: const Text('📚 프리셋 관리')),
       body: Padding(
@@ -227,91 +329,71 @@ class _PresetPageState extends State<PresetPage> {
                       icon: const Icon(Icons.add),
                       label: const Text('새 프리셋 저장'),
                       onPressed: () async {
-                        final nameController = TextEditingController();
-                        final confirm = await showDialog<bool>(
+                        await showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
-                            title: const Text('새 프리셋 이름'),
-                            content: TextField(
-                              controller: nameController,
-                              decoration: const InputDecoration(
-                                labelText: '프리셋 이름 입력',
-                                border: OutlineInputBorder(),
+                            title: const Text('새 프리셋 생성'),
+                            content: SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TextField(
+                                    controller: _newPresetControllers['name'],
+                                    decoration: const InputDecoration(labelText: '프리셋 이름'),
+                                  ),
+                                  TextField(
+                                    controller: _newPresetControllers['tone'],
+                                    decoration: const InputDecoration(labelText: '말투 톤'),
+                                  ),
+                                  TextField(
+                                    controller: _newPresetControllers['emotion'],
+                                    decoration: const InputDecoration(labelText: '감정 경향'),
+                                  ),
+                                  TextField(
+                                    controller: _newPresetControllers['formality'],
+                                    decoration: const InputDecoration(labelText: '격식 수준'),
+                                  ),
+                                  TextField(
+                                    controller: _newPresetControllers['vocab'],
+                                    decoration: const InputDecoration(labelText: '어휘 스타일 (콤마 구분)'),
+                                  ),
+                                  TextField(
+                                    controller: _newPresetControllers['sentence'],
+                                    decoration: const InputDecoration(labelText: '문장 스타일 (콤마 구분)'),
+                                  ),
+                                  TextField(
+                                    controller: _newPresetControllers['expression'],
+                                    decoration: const InputDecoration(labelText: '표현 빈도 (콤마 구분)'),
+                                  ),
+                                  TextField(
+                                    controller: _newPresetControllers['intent'],
+                                    decoration: const InputDecoration(labelText: '의도 성향 (콤마 구분)'),
+                                  ),
+                                  TextField(
+                                    controller: _newPresetControllers['notes'],
+                                    decoration: const InputDecoration(labelText: '비고'),
+                                  ),
+                                ],
                               ),
                             ),
                             actions: [
                               TextButton(
-                                onPressed: () => Navigator.pop(context, false),
+                                onPressed: () {
+                                  _clearNewPresetControllers();
+                                  Navigator.pop(context);
+                                },
                                 child: const Text('취소'),
                               ),
                               TextButton(
-                                onPressed: () => Navigator.pop(context, true),
+                                onPressed: () => _savePreset(
+                                  isNew: true,
+                                  controllers: _newPresetControllers,
+                                ),
                                 child: const Text('저장'),
                               ),
                             ],
                           ),
                         );
-
-                        if (confirm == true) {
-                          final name = nameController.text.trim();
-                          if (name.isEmpty) return;
-                          if (_presetNames.contains(name)) {
-                            final overwrite = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('덮어쓰기 확인'),
-                                content: Text('"$name" 프리셋이 이미 존재합니다. 덮어쓰시겠습니까?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
-                                    child: const Text('아니오'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: const Text('덮어쓰기'),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (overwrite != true) return;
-                          }
-
-                          final uri = Uri.parse('$hostApiServer/presets/${widget.userId}');
-                          final presetData = {
-                            "name": name,
-                            "tone": _toneController.text.trim(),
-                            "emotion_tendency": _emotionController.text.trim(),
-                            "formality": _formalityController.text.trim(),
-                            "vocab_style": _vocabController.text.trim().split(',').map((e) => e.trim()).toList(),
-                            "sentence_style": _sentenceController.text.trim().split(',').map((e) => e.trim()).toList(),
-                            "expression_freq": _expressionController.text.trim().split(',').map((e) => e.trim()).toList(),
-                            "intent_bias": _intentController.text.trim().split(',').map((e) => e.trim()).toList(),
-                            "relationship_tendency": [],
-                            "sample_phrases": [],
-                            "notes": _notesController.text.trim(),
-                            "ai_recommendation_tone": _aiToneController.text.trim()
-                          };
-
-                          try {
-                            final response = await http.post(
-                              uri,
-                              headers: {'Content-Type': 'application/json'},
-                              body: jsonEncode(presetData),
-                            );
-                            if (response.statusCode == 200) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('"$name" 프리셋 저장 완료')),
-                              );
-                              await _loadPresetList();
-                            } else {
-                              throw Exception('프리셋 저장 실패');
-                            }
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('저장 오류: \$e')),
-                            );
-                          }
-                        }
                       },
                     ),
                   ],
