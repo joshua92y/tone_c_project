@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'preset_page.dart';
+
 class AnalyzePage extends StatefulWidget {
   final String userId;
   const AnalyzePage({super.key, required this.userId});
@@ -12,6 +14,7 @@ class AnalyzePage extends StatefulWidget {
 
 class _AnalyzePageState extends State<AnalyzePage> {
   final _dialogueController = TextEditingController();
+  final _presetNameController = TextEditingController();
   bool _loading = false;
   Map<String, dynamic>? _result;
 
@@ -20,6 +23,7 @@ class _AnalyzePageState extends State<AnalyzePage> {
   @override
   void dispose() {
     _dialogueController.dispose();
+    _presetNameController.dispose();
     super.dispose();
   }
 
@@ -107,13 +111,45 @@ class _AnalyzePageState extends State<AnalyzePage> {
       final response = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(presetData),
+        body: jsonEncode({
+          ...presetData,
+          'name': name,  // 프리셋 이름 추가
+        }),
       );
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('프리셋이 저장되었습니다.')),
         );
+        
+        // 저장 후 프리셋 페이지로 이동 여부 확인
+        final goToPresetPage = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('프리셋 저장 완료'),
+            content: const Text('프리셋 목록 페이지로 이동하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('아니오'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('예'),
+              ),
+            ],
+          ),
+        );
+
+        if (goToPresetPage == true) {
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PresetPage(userId: widget.userId),
+            ),
+          );
+        }
       } else {
         throw Exception('저장 실패: ${response.statusCode}');
       }
@@ -127,11 +163,13 @@ class _AnalyzePageState extends State<AnalyzePage> {
   Widget _buildResultCard() {
     if (_result == null) return const SizedBox.shrink();
     final r = _result!;
-    final _presetNameController = TextEditingController();
 
     return Card(
       margin: const EdgeInsets.only(top: 16),
       elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -139,10 +177,12 @@ class _AnalyzePageState extends State<AnalyzePage> {
           children: [
             TextField(
               controller: _presetNameController,
+              style: const TextStyle(fontSize: 16),
               decoration: const InputDecoration(
                 labelText: '📌 말투 이름',
                 hintText: '저장할 프리셋 이름을 입력하세요',
                 border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
             const SizedBox(height: 16),
@@ -155,10 +195,10 @@ class _AnalyzePageState extends State<AnalyzePage> {
             _buildResultField('📊 표현 빈도', _formatList(r['expression_freq'])),
             _buildResultField('💡 의도 성향', _formatList(r['intent_bias'])),
             const SizedBox(height: 8),
-            const Text('👥 관계별 말투:', style: TextStyle(fontWeight: FontWeight.bold)),
+            _buildSectionTitle('👥 관계별 말투'),
             ..._formatRelationshipList(r['relationship_tendency']),
             const SizedBox(height: 8),
-            const Text('💬 샘플 문장:', style: TextStyle(fontWeight: FontWeight.bold)),
+            _buildSectionTitle('💬 샘플 문장'),
             ..._formatListAsWidgets(r['sample_phrases']),
             const SizedBox(height: 8),
             _buildResultField('📝 비고', r['notes']),
@@ -167,6 +207,11 @@ class _AnalyzePageState extends State<AnalyzePage> {
             ElevatedButton.icon(
               icon: const Icon(Icons.save),
               label: const Text('프리셋으로 저장'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 45),
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () => _saveAsPreset(_presetNameController.text.trim(), r),
             ),
           ],
@@ -175,18 +220,43 @@ class _AnalyzePageState extends State<AnalyzePage> {
     );
   }
 
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.blue,
+        ),
+      ),
+    );
+  }
+
   Widget _buildResultField(String label, String? value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: RichText(
         text: TextSpan(
-          style: DefaultTextStyle.of(context).style,
+          style: const TextStyle(
+            fontSize: 15,
+            color: Colors.black87,
+          ),
           children: [
             TextSpan(
               text: '$label: ',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
             ),
-            TextSpan(text: value ?? '-'),
+            TextSpan(
+              text: value ?? '-',
+              style: const TextStyle(
+                color: Colors.black54,
+              ),
+            ),
           ],
         ),
       ),
@@ -200,7 +270,16 @@ class _AnalyzePageState extends State<AnalyzePage> {
 
   List<Widget> _formatListAsWidgets(List<dynamic>? list) {
     if (list == null || list.isEmpty) return [const Text('- 없음')];
-    return list.map((item) => Text('• $item')).toList();
+    return list.map((item) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(
+        '• $item',
+        style: const TextStyle(
+          fontSize: 15,
+          color: Colors.black54,
+        ),
+      ),
+    )).toList();
   }
 
   List<Widget> _formatRelationshipList(List<dynamic>? list) {
@@ -208,14 +287,27 @@ class _AnalyzePageState extends State<AnalyzePage> {
     return list.map((item) {
       final context = item['context'];
       final tone = item['tone'];
-      return Text('• $context: $tone');
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Text(
+          '• $context: $tone',
+          style: const TextStyle(
+            fontSize: 15,
+            color: Colors.black54,
+          ),
+        ),
+      );
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('🧠 말투 분석')),
+      appBar: AppBar(
+        title: const Text('🧠 말투 분석'),
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.white,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -223,20 +315,30 @@ class _AnalyzePageState extends State<AnalyzePage> {
             TextField(
               controller: _dialogueController,
               maxLines: 6,
+              style: const TextStyle(fontSize: 16),
               decoration: const InputDecoration(
                 labelText: '대화 입력',
                 hintText: '분석할 대화를 한 줄에 한 문장씩 입력하세요.',
                 border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: _loading ? null : _analyzeTone,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 45),
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+              ),
               child: _loading
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
                     )
                   : const Text('분석하기'),
             ),
