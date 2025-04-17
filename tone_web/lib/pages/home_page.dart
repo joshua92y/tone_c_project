@@ -15,6 +15,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _userController = TextEditingController();
+  String? _selectedUser;
   List<String> _userIds = [];
   final String hostApiServer = 'https://tonecproject-production.up.railway.app';
 
@@ -43,7 +44,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final selectedUser = _userController.text.trim();
+    final userId = _userController.text.trim();
 
     return Scaffold(
       appBar: AppBar(title: const Text('💬 말투 분석 시스템')),
@@ -58,8 +59,11 @@ class _HomePageState extends State<HomePage> {
               },
               onSelected: (value) => _userController.text = value,
               fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                controller.addListener(() {
+                  _userController.text = controller.text;
+                });
                 return TextField(
-                  controller: _userController,
+                  controller: controller,
                   focusNode: focusNode,
                   decoration: const InputDecoration(
                     labelText: '사용자 ID 입력 또는 선택',
@@ -68,17 +72,46 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () async {
+                final enteredId = _userController.text.trim();
+                if (!_userIds.contains(enteredId)) {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('신규 사용자'),
+                      content: Text('사용자 "${_userController.text.trim()}"는 존재하지 않습니다. 추가하시겠습니까?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('취소'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('확인'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm != true) return;
+                  setState(() => _userIds.add(enteredId));
+                }
+                setState(() => _selectedUser = enteredId);
+              },
+              child: const Text('사용자 선택'),
+            ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               icon: const Icon(Icons.analytics),
               label: const Text('말투 분석하기'),
-              onPressed: selectedUser.isEmpty
+              onPressed: userId.isEmpty
                   ? null
                   : () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => PresetPage(userId: selectedUser),
+                          builder: (_) => AnalyzePage(userId: userId),
                         ),
                       );
                     },
@@ -87,13 +120,13 @@ class _HomePageState extends State<HomePage> {
             ElevatedButton.icon(
               icon: const Icon(Icons.sync_alt),
               label: const Text('말투 변환'),
-              onPressed: selectedUser.isEmpty
+              onPressed: userId.isEmpty
                   ? null
                   : () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => ConvertPage(userId: selectedUser),
+                          builder: (_) => ConvertPage(userId: userId),
                         ),
                       );
                     },
@@ -102,13 +135,13 @@ class _HomePageState extends State<HomePage> {
             ElevatedButton.icon(
               icon: const Icon(Icons.library_books),
               label: const Text('프리셋 관리'),
-              onPressed: selectedUser.isEmpty
+              onPressed: userId.isEmpty
                   ? null
                   : () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => AnalyzePage(userId: selectedUser),
+                          builder: (_) => PresetPage(userId: userId),
                         ),
                       );
                     },
