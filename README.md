@@ -31,3 +31,5 @@ git checkout main
 cd tone_web
 flutter build web --base-href="/tone_c_project/"
 git subtree push --prefix=tone_web/build/web origin gh-pages
+
+개발용 프론트 실행

@@ -9,7 +9,7 @@ import logging
 import sys
 
 # API 라우터들
-from app.api import analyze, storage, convert, preset, history
+from app.api import analyze, storage, convert, preset, history ,user
 
 # 전역 경로 기준 설정
 BASE_DIR = Path(__file__).resolve().parent
@@ -57,6 +57,7 @@ app.include_router(storage.router)
 app.include_router(convert.router)
 app.include_router(preset.router)
 app.include_router(history.router)
+app.include_router(user.router)
 
 @app.get("/")
 async def root():
