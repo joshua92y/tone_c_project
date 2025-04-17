@@ -18,6 +18,7 @@ class _HomePageState extends State<HomePage> {
   final _userController = TextEditingController();
   List<String> _userIds = [];
   bool _loading = false;
+  bool _isUserSelected = false;
   final String hostApiServer = 'https://tonecproject-production.up.railway.app';
 
   @override
@@ -74,11 +75,17 @@ class _HomePageState extends State<HomePage> {
         ),
       );
       if (confirm == true) {
-        setState(() => _userIds.add(userId));
+        setState(() {
+          _userIds.add(userId);
+          _isUserSelected = true;
+        });
       } else {
         _userController.clear();
+        setState(() => _isUserSelected = false);
         return;
       }
+    } else {
+      setState(() => _isUserSelected = true);
     }
   }
 
@@ -111,51 +118,78 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Autocomplete<String>(
-              optionsBuilder: (TextEditingValue textEditingValue) {
-                if (textEditingValue.text.isEmpty) {
-                  return _userIds;
-                }
-                return _userIds.where((id) => 
-                  id.toLowerCase().contains(textEditingValue.text.toLowerCase())
-                );
-              },
-              onSelected: (value) {
-                _userController.text = value;
-                _handleUserSelection(value);
-              },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  onSubmitted: (value) {
-                    if (value.isNotEmpty) {
+            Row(
+              children: [
+                Expanded(
+                  child: Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text.isEmpty) {
+                        return _userIds;
+                      }
+                      return _userIds.where((id) => 
+                        id.toLowerCase().contains(textEditingValue.text.toLowerCase())
+                      );
+                    },
+                    onSelected: (value) {
                       _userController.text = value;
                       _handleUserSelection(value);
-                    }
-                  },
-                  decoration: InputDecoration(
-                    labelText: '사용자 ID 입력 또는 선택',
-                    hintText: '입력 후 Enter 또는 목록에서 선택',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: controller.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              controller.clear();
-                              _userController.clear();
-                            },
-                          )
-                        : null,
+                    },
+                    fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        onSubmitted: (value) {
+                          if (value.isNotEmpty) {
+                            _userController.text = value;
+                            _handleUserSelection(value);
+                          }
+                        },
+                        decoration: InputDecoration(
+                          labelText: '사용자 ID 입력 또는 선택',
+                          hintText: '입력 후 Enter 또는 목록에서 선택',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: controller.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    controller.clear();
+                                    _userController.clear();
+                                    setState(() => _isUserSelected = false);
+                                  },
+                                )
+                              : null,
+                          prefixIcon: _isUserSelected
+                              ? const Icon(Icons.check_circle, color: Colors.green)
+                              : null,
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: userId.isNotEmpty
+                      ? () => _handleUserSelection(userId)
+                      : null,
+                  child: const Text('확인'),
+                ),
+              ],
             ),
+            if (_isUserSelected) ...[
+              const SizedBox(height: 16),
+              Text(
+                '현재 선택된 사용자: $userId',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             _buildFeatureButton(
               icon: Icons.analytics,
               label: '말투 분석하기',
-              enabled: userId.isNotEmpty,
+              enabled: _isUserSelected,
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -167,7 +201,7 @@ class _HomePageState extends State<HomePage> {
             _buildFeatureButton(
               icon: Icons.sync_alt,
               label: '말투 변환',
-              enabled: userId.isNotEmpty,
+              enabled: _isUserSelected,
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -179,7 +213,7 @@ class _HomePageState extends State<HomePage> {
             _buildFeatureButton(
               icon: Icons.library_books,
               label: '프리셋 관리',
-              enabled: userId.isNotEmpty,
+              enabled: _isUserSelected,
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -191,7 +225,7 @@ class _HomePageState extends State<HomePage> {
             _buildFeatureButton(
               icon: Icons.history,
               label: '히스토리 보기',
-              enabled: userId.isNotEmpty,
+              enabled: _isUserSelected,
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
