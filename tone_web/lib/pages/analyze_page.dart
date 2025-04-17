@@ -82,7 +82,7 @@ class _AnalyzePageState extends State<AnalyzePage> {
             ..._formatListAsWidgets(r['sample_phrases']),
             const SizedBox(height: 8),
             Text("📝 비고: ${r['notes']}"),
-            Text("🤖 AI 추천 톤: \${r['ai_recommendation_tone']}"),
+            Text("🤖 AI 추천 톤: ${r['ai_recommendation_tone']}"),
             const SizedBox(height: 12),
             ElevatedButton.icon(
               icon: const Icon(Icons.save),
@@ -90,7 +90,7 @@ class _AnalyzePageState extends State<AnalyzePage> {
               onPressed: () async {
                 final name = _presetNameController.text.trim();
                 if (name.isEmpty) return;
-                final uri = Uri.parse('$hostApiServer/presets/\${widget.userId}');
+                final uri = Uri.parse('$hostApiServer/presets/${widget.userId}');
                 final presetData = Map<String, dynamic>.from(r);
                 presetData['name'] = name;
 

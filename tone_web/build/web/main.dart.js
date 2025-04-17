@@ -78402,7 +78402,7 @@ r.push(A.bg("\ud83d\udcac \uc0d8\ud50c \ubb38\uc7a5:",p,p,p,p,p,p))
 B.b.S(r,q.a2l(o.h(0,"sample_phrases")))
 r.push(B.du)
 r.push(A.bg("\ud83d\udcdd \ube44\uace0: "+A.k(o.h(0,"notes")),p,p,p,p,p,p))
-r.push(A.bg("\ud83e\udd16 AI \ucd94\ucc9c \ud1a4: ${r['ai_recommendation_tone']}",p,p,p,p,p,p))
+r.push(A.bg("\ud83e\udd16 AI \ucd94\ucc9c \ud1a4: "+A.k(o.h(0,"ai_recommendation_tone")),p,p,p,p,p,p))
 r.push(B.eF)
 r.push(A.wb(B.mF,B.RP,new A.ab2(q,s,o)))
 return A.alB(new A.bM(B.cc,A.id(r,B.bp,B.au,B.bd),p),4,B.Df)},
@@ -78428,27 +78428,28 @@ A.ab1.prototype={
 $0(){return this.a.e=!1},
 $S:0}
 A.ab2.prototype={
-$0(){var s=0,r=A.S(t.H),q,p=2,o=[],n=this,m,l,k,j,i,h,g
+$0(){var s=0,r=A.S(t.H),q,p=2,o=[],n=this,m,l,k,j,i,h,g,f
 var $async$$0=A.O(function(a,b){if(a===1){o.push(b)
-s=p}while(true)switch(s){case 0:h=B.c.es(n.b.a.a)
-if(h.length===0){s=1
-break}m=A.d5("https://tonecproject-production.up.railway.app/presets/${widget.userId}")
-j=t.N
-l=A.amo(n.c,j,t.z)
-J.kF(l,"name",h)
+s=p}while(true)switch(s){case 0:g=B.c.es(n.b.a.a)
+if(g.length===0){s=1
+break}j=n.a
+m=A.d5(u.n+j.a.c)
+i=t.N
+l=A.amo(n.c,i,t.z)
+J.kF(l,"name",g)
 p=4
-j=A.ag(["Content-Type","application/json"],j,j)
+i=A.ag(["Content-Type","application/json"],i,i)
 s=7
-return A.V(A.TG(m,B.aE.oW(l,null),j),$async$$0)
+return A.V(A.TG(m,B.aE.oW(l,null),i),$async$$0)
 case 7:k=b
-if(k.b===200)n.a.c.a5(t.O).f.fX(B.MI)
-else{j=A.cp("\uc800\uc7a5 \uc2e4\ud328: ${response.statusCode}")
-throw A.h(j)}p=2
+if(k.b===200)j.c.a5(t.O).f.fX(B.MI)
+else{i=A.cp("\uc800\uc7a5 \uc2e4\ud328: ${response.statusCode}")
+throw A.h(i)}p=2
 s=6
 break
 case 4:p=3
-g=o.pop()
-n.a.c.a5(t.O).f.fX(A.hP(null,null,null,null,null,B.u,null,A.bg("\uc800\uc7a5 \uc624\ub958: $e",null,null,null,null,null,null),null,B.aV,null,null,null,null,null,null,null,null,null))
+f=o.pop()
+j.c.a5(t.O).f.fX(A.hP(null,null,null,null,null,B.u,null,A.bg("\uc800\uc7a5 \uc624\ub958: $e",null,null,null,null,null,null),null,B.aV,null,null,null,null,null,null,null,null,null))
 s=6
 break
 case 3:s=2
