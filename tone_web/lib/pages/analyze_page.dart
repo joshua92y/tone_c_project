@@ -48,6 +48,8 @@ class _AnalyzePageState extends State<AnalyzePage> {
   Widget _buildResultCard() {
     if (_result == null) return const SizedBox.shrink();
     final r = _result!;
+    final _presetNameController = TextEditingController();
+    _presetNameController.text = r['name'] ?? '';
     return Card(
       margin: const EdgeInsets.only(top: 16),
       elevation: 4,
@@ -56,7 +58,14 @@ class _AnalyzePageState extends State<AnalyzePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("📌 말투 이름: ${r['name']}"),
+            TextField(
+              controller: _presetNameController,
+              decoration: InputDecoration(
+                labelText: '📌 말투 이름',
+                hintText: r['name'] ?? '',
+                border: const OutlineInputBorder(),
+              ),
+            ),
             Text("🎯 말투 톤: ${r['tone']}"),
             Text("😊 감정 경향: ${r['emotion_tendency']}"),
             Text("📏 격식 수준: ${r['formality']}"),
@@ -73,7 +82,38 @@ class _AnalyzePageState extends State<AnalyzePage> {
             ..._formatListAsWidgets(r['sample_phrases']),
             const SizedBox(height: 8),
             Text("📝 비고: ${r['notes']}"),
-            Text("🤖 AI 추천 톤: ${r['ai_recommendation_tone']}"),
+            Text("🤖 AI 추천 톤: \${r['ai_recommendation_tone']}"),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save),
+              label: const Text('프리셋으로 저장'),
+              onPressed: () async {
+                final name = _presetNameController.text.trim();
+                if (name.isEmpty) return;
+                final uri = Uri.parse('$hostApiServer/presets/\${widget.userId}');
+                final presetData = Map<String, dynamic>.from(r);
+                presetData['name'] = name;
+
+                try {
+                  final response = await http.post(
+                    uri,
+                    headers: {'Content-Type': 'application/json'},
+                    body: jsonEncode(presetData),
+                  );
+                  if (response.statusCode == 200) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('프리셋 저장 완료')),
+                    );
+                  } else {
+                    throw Exception('저장 실패: \${response.statusCode}');
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('저장 오류: \$e')),
+                  );
+                }
+              },
+            ),
           ],
         ),
       ),
