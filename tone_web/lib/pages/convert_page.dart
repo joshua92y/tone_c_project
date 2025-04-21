@@ -1,8 +1,8 @@
-// ✅ ConvertPage에서 userId를 HomePage에서 받아오도록 변경
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async'; // ⏱️ timeout 처리용
 
 class ConvertPage extends StatefulWidget {
   final String userId;
@@ -66,8 +66,8 @@ class _ConvertPageState extends State<ConvertPage> {
   Future<void> _convertText() async {
     final userId = widget.userId.trim();
     if (_selectedPreset == null || userId.isEmpty) return;
-    setState(() => _loading = true);
 
+    setState(() => _loading = true);
     final uri = Uri.parse('$hostApiServer/convert/from-preset');
     final requestBody = {
       "user_id": userId,
@@ -76,11 +76,13 @@ class _ConvertPageState extends State<ConvertPage> {
     };
 
     try {
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
-      );
+      final response = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(requestBody),
+          )
+          .timeout(const Duration(seconds: 15)); // ⏱️ 타임아웃 추가
 
       if (response.statusCode == 200) {
         final decoded = utf8.decode(response.bodyBytes);
@@ -88,8 +90,12 @@ class _ConvertPageState extends State<ConvertPage> {
         setState(() => _result = convertedText);
         await _saveToHistory(convertedText);
       } else {
-        throw Exception('변환 실패');
+        throw Exception('변환 실패 (code: ${response.statusCode})');
       }
+    } on TimeoutException {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('서버 응답이 지연되고 있습니다. 다시 시도해주세요.')),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('오류: $e')));
     } finally {
@@ -134,16 +140,18 @@ class _ConvertPageState extends State<ConvertPage> {
                   child: Text(shortened),
                 );
               }).toList(),
-              onChanged: (value) {
-                setState(() => _selectedPreset = value);
-              },
+              onChanged: _loading
+                  ? null
+                  : (value) {
+                      setState(() => _selectedPreset = value);
+                    },
             ),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton(
-                  onPressed: _loading ? null : _convertText,
+                  onPressed: _loading ? null : _convertText, // ✅ 로딩 중에는 비활성화
                   child: _loading
                       ? const CircularProgressIndicator()
                       : const Text('변환하기'),

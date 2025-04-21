@@ -21,7 +21,7 @@ def convert_with_tone_profile(data: ConvertWithProfileRequest) -> ConvertRespons
     profile = data.tone_profile
 
     prompt = f"""
-다음 문장을 아래의 말투 스타일에 맞게 자연스럽게 변환해줘. 말투 특성(말끝 흐림, 줄임말, 이모지 등)을 반영해줘.
+다음 문장을 아래의 말투 스타일에 맞게 자연스럽게 변환해줘. 말투 특성(말끝 흐림, 줄임말, 이모지 등)을 반영해서 설명 없이 바뀐 문장만 하나만 출력해줘.
 
 변환할 문장:
 {data.text}
@@ -36,7 +36,6 @@ def convert_with_tone_profile(data: ConvertWithProfileRequest) -> ConvertRespons
 - 표현 빈도: {", ".join(profile.expression_freq)}
 - 의도 성향: {", ".join(profile.intent_bias)}
 
-결과 문장만 출력해줘.
 """
 
     response = model.generate_content(prompt)
